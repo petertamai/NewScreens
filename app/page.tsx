@@ -6,8 +6,10 @@ import { Sidebar } from "@/components/sidebar"
 import { PasteZone } from "@/components/paste-zone"
 import { ScreenshotCard } from "@/components/screenshot-card"
 import { Input } from "@/components/ui/input"
-import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy, Settings2, Download } from "lucide-react"
+import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy, Settings2, Download, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { authClient } from "@/lib/auth-client"
+import { LoginScreen } from "@/components/login-screen"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +47,7 @@ interface Screenshot {
 }
 
 export default function Home() {
+  const { data: session, isPending } = authClient.useSession()
   const [autoMode, setAutoMode] = useState(false)
   const [lastSaved, setLastSaved] = useState<string>()
   const [screenshots, setScreenshots] = useState<Screenshot[]>([])
@@ -697,6 +700,24 @@ export default function Home() {
     return "bg-orange-500"
   }
 
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Show login screen if not authenticated
+  if (!session) {
+    return <LoginScreen />
+  }
+
+  const handleSignOut = async () => {
+    await authClient.signOut()
+  }
+
   return (
     <div className="flex h-screen">
       <Sidebar
@@ -709,7 +730,7 @@ export default function Home() {
 
       <main className="flex-1 overflow-auto">
         <Tabs defaultValue="paste" value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <div className="border-b px-6 py-3">
+          <div className="border-b px-6 py-3 flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="paste" className="gap-2">
                 <Clipboard className="h-4 w-4" />
@@ -728,6 +749,15 @@ export default function Home() {
                 Settings
               </TabsTrigger>
             </TabsList>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {session.user?.email}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-1" />
+                Sign out
+              </Button>
+            </div>
           </div>
 
           <div className="p-6">

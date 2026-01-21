@@ -4,19 +4,13 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { embedImageMetadata } from "@/lib/metadata"
 
-// Helper to check if a path is an absolute Windows/Unix path (legacy format)
-function isAbsolutePath(p: string): boolean {
-  return path.isAbsolute(p) || /^[a-zA-Z]:[\\/]/.test(p)
-}
-
-// Helper to get folder name from path (handles both legacy absolute and new relative formats)
+// Helper to get folder name from path (handles both Windows and Unix paths cross-platform)
+// On Linux, path.basename('C:\\Users\\...\\Folder') returns the entire string because
+// Linux doesn't recognize backslash as a path separator. This function handles both.
 function getFolderName(folderPath: string): string {
-  if (isAbsolutePath(folderPath)) {
-    // Legacy absolute path - extract folder name
-    return path.basename(folderPath)
-  }
-  // New format - path is just the folder name
-  return folderPath
+  // Split by both Windows and Unix separators, take the last non-empty segment
+  const segments = folderPath.split(/[/\\]/).filter(Boolean)
+  return segments[segments.length - 1] || folderPath
 }
 
 export async function POST(request: NextRequest) {

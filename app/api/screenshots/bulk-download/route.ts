@@ -16,6 +16,14 @@ function resolveFilePath(filepath: string): string {
   return filepath
 }
 
+// Helper to get basename from path (handles both Windows and Unix paths cross-platform)
+// On Linux, path.basename('C:\\Users\\...\\file.png') returns the entire string because
+// Linux doesn't recognize backslash as a path separator. This function handles both.
+function getBasename(filepath: string): string {
+  const segments = filepath.split(/[/\\]/).filter(Boolean)
+  return segments[segments.length - 1] || filepath
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { ids } = await request.json()
@@ -56,7 +64,7 @@ export async function POST(request: NextRequest) {
 
       // Check if file exists
       if (fs.existsSync(filePath)) {
-        const filename = screenshot.filename || path.basename(filePath)
+        const filename = screenshot.filename || getBasename(filePath)
         archive.file(filePath, { name: filename })
       } else {
         console.warn(`File not found: ${filePath}`)

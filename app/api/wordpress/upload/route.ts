@@ -15,6 +15,14 @@ function resolveFilePath(filepath: string): string {
   return filepath
 }
 
+// Helper to get basename from path (handles both Windows and Unix paths cross-platform)
+// On Linux, path.basename('C:\\Users\\...\\file.png') returns the entire string because
+// Linux doesn't recognize backslash as a path separator. This function handles both.
+function getBasename(filepath: string): string {
+  const segments = filepath.split(/[/\\]/).filter(Boolean)
+  return segments[segments.length - 1] || filepath
+}
+
 /**
  * Upload a screenshot to WordPress
  * This endpoint is called after the screenshot is saved locally
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Read the image file
     const filePath = resolveFilePath(screenshot.filepath)
     const fileBuffer = await fs.readFile(filePath)
-    const filename = path.basename(filePath)
+    const filename = getBasename(filePath)
 
     // Parse keywords if available
     let keywords: string[] = []

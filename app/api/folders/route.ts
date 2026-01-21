@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma"
 import fs from "fs/promises"
 import path from "path"
 
+// Helper to extract folder name from path (handles both Windows and Unix paths cross-platform)
+// On Linux, path.basename('C:\\Users\\...\\Folder') returns the entire string because
+// Linux doesn't recognize backslash as a path separator. This function handles both.
+function extractFolderName(inputPath: string): string {
+  const segments = inputPath.split(/[/\\]/).filter(Boolean)
+  return segments[segments.length - 1] || inputPath
+}
+
 // GET all folders
 export async function GET() {
   try {
@@ -32,10 +40,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Sanitize folder name - remove any path separators to prevent directory traversal
-    const sanitizedFolderName = folderPath
-      .replace(/[/\\]/g, "_")
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
+    // Extract just the folder name from potential Windows/Unix path
+    const extractedName = extractFolderName(folderPath)
+
+    // Sanitize folder name - remove any invalid characters to prevent directory traversal
+    const sanitizedFolderName = extractedName
+      .replace(/[^a-zA-Z0-9_\- ]/g, "_")
       .substring(0, 100)
 
     if (!sanitizedFolderName) {
