@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Zap, Clock, FolderOpen, DollarSign } from "lucide-react"
+import { Zap, Clock, FolderOpen, DollarSign, LogOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { LibraryFolders, LibraryFolder } from "@/components/library-folders"
 
 interface UsageStats {
@@ -54,7 +55,7 @@ export function Sidebar({ autoMode, onAutoModeChange, lastSaved, folders, onFold
   }, [lastSaved])
 
   return (
-    <div className="w-64 border-r bg-muted/30 p-4 space-y-4">
+    <div className="w-64 border-r bg-muted/30 p-4 space-y-4 flex flex-col h-full">
       <div className="mb-6">
         <h1 className="text-xl font-bold">Screenshot Manager</h1>
         <p className="text-sm text-muted-foreground">Paste, analyze & save</p>
@@ -161,6 +162,21 @@ export function Sidebar({ autoMode, onAutoModeChange, lastSaved, folders, onFold
           )}
         </CardContent>
       </Card>
+
+      <div className="pt-4 mt-auto">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            localStorage.clear()
+            sessionStorage.clear()
+            window.location.reload()
+          }}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
+      </div>
     </div>
   )
 }
