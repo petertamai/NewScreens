@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3010",
-    "build": "next build && shx cp -r public .next/standalone/ && shx cp -r .next/static .next/standalone/.next/",
+    "build": "next build && shx cp -r public .next/standalone/ && shx cp -r .next/static .next/standalone/.next/ && shx cp -r prisma .next/standalone/",
     "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "postinstall": "prisma generate"
