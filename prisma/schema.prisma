@@ -1,0 +1,55 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model LibraryFolder {
+  id          Int          @id @default(autoincrement())
+  name        String
+  path        String       @unique
+  isSelected  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  screenshots Screenshot[]
+}
+
+model Screenshot {
+  id              Int            @id @default(autoincrement())
+  filename        String
+  filepath        String
+  description     String?
+  aiSuggestedName String?
+  keywords        String? // JSON array: ["keyword1", "keyword2"]
+  wpImageUrl      String?        // WordPress media library URL
+  wpAttachmentId  Int?           // WordPress attachment ID
+  createdAt       DateTime       @default(now())
+  apiUsage        ApiUsage[]
+  folderId        Int?
+  folder          LibraryFolder? @relation(fields: [folderId], references: [id])
+}
+
+model ApiUsage {
+  id           Int         @id @default(autoincrement())
+  model        String
+  promptTokens Int
+  outputTokens Int
+  totalTokens  Int
+  inputCost    Float
+  outputCost   Float
+  totalCost    Float
+  screenshotId Int?
+  createdAt    DateTime    @default(now())
+
+  screenshot   Screenshot? @relation(fields: [screenshotId], references: [id])
+}
+
+model Settings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

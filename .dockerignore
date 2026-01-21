@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js build output
+.next
+out
+
+# Environment files (provide via docker-compose or -e flag)
+.env
+.env.*
+!.env.example
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+LICENSE
+
+# Testing
+coverage
+.nyc_output
+
+# Development files
+tsconfig.tsbuildinfo
+nul
+
+# Database (will be created in volume)
+prisma/dev.db
+prisma/dev.db-journal
+
+# Screenshots (will be mounted as volume)
+public/screenshots/*
+!public/screenshots/.gitkeep

@@ -1,0 +1,31 @@
+services:
+  newscreens:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: newscreens:latest
+    container_name: newscreens
+    restart: unless-stopped
+    ports:
+      - "3010:3000"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=file:/app/data/dev.db
+    volumes:
+      # Persist database
+      - newscreens-data:/app/data
+      # Persist screenshots
+      - newscreens-screenshots:/app/public/screenshots
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  newscreens-data:
+    driver: local
+  newscreens-screenshots:
+    driver: local
