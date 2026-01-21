@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { DEFAULT_INSTRUCTION } from "@/lib/gemini"
+import { DEFAULT_INSTRUCTION, DEFAULT_MODEL } from "@/lib/gemini"
 
 export async function GET() {
   try {
@@ -17,6 +17,7 @@ export async function GET() {
       isDefault: !settingsMap["customPrompt"],
       wordpress_site_url: settingsMap["wordpress_site_url"] || "",
       wordpress_api_key: settingsMap["wordpress_api_key"] || "",
+      gemini_model: settingsMap["gemini_model"] || DEFAULT_MODEL,
     })
   } catch (error) {
     console.error("Failed to fetch settings:", error)
@@ -30,7 +31,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { customPrompt, wordpress_site_url, wordpress_api_key } = body
+    const { customPrompt, wordpress_site_url, wordpress_api_key, gemini_model } = body
 
     // Handle custom prompt setting
     if (customPrompt !== undefined) {
@@ -81,6 +82,22 @@ export async function POST(request: NextRequest) {
       } else {
         await prisma.settings.deleteMany({
           where: { key: "wordpress_api_key" },
+        })
+      }
+    }
+
+    // Handle Gemini model setting
+    if (gemini_model !== undefined) {
+      if (gemini_model && gemini_model !== DEFAULT_MODEL) {
+        await prisma.settings.upsert({
+          where: { key: "gemini_model" },
+          update: { value: gemini_model },
+          create: { key: "gemini_model", value: gemini_model },
+        })
+      } else {
+        // If it's the default model, remove the setting
+        await prisma.settings.deleteMany({
+          where: { key: "gemini_model" },
         })
       }
     }

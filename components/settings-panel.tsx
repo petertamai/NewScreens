@@ -4,9 +4,16 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, RotateCcw, Save, Globe, Key, CheckCircle2, XCircle, Download } from "lucide-react"
-import { DEFAULT_INSTRUCTION, JSON_OUTPUT_FORMAT } from "@/lib/gemini"
+import { Loader2, RotateCcw, Save, Globe, Key, CheckCircle2, XCircle, Download, Cpu } from "lucide-react"
+import { DEFAULT_INSTRUCTION, JSON_OUTPUT_FORMAT, AVAILABLE_MODELS, DEFAULT_MODEL } from "@/lib/gemini"
 
 export function SettingsPanel() {
   const [prompt, setPrompt] = useState("")
@@ -14,6 +21,10 @@ export function SettingsPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDefault, setIsDefault] = useState(true)
   const { toast } = useToast()
+
+  // AI Model settings
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
+  const [isModelSaving, setIsModelSaving] = useState(false)
 
   // WordPress settings
   const [wpSiteUrl, setWpSiteUrl] = useState("")
@@ -35,6 +46,8 @@ export function SettingsPanel() {
           // Load WordPress settings
           if (data.wordpress_site_url) setWpSiteUrl(data.wordpress_site_url)
           if (data.wordpress_api_key) setWpApiKey(data.wordpress_api_key)
+          // Load AI model setting
+          if (data.gemini_model) setSelectedModel(data.gemini_model)
         }
       } catch (error) {
         console.error("Failed to fetch settings:", error)
@@ -80,6 +93,36 @@ export function SettingsPanel() {
 
   const handleReset = () => {
     setPrompt(DEFAULT_INSTRUCTION)
+  }
+
+  // AI Model save handler
+  const handleModelSave = async () => {
+    setIsModelSaving(true)
+    try {
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gemini_model: selectedModel }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Model saved",
+          description: `AI model changed to ${selectedModel}`,
+        })
+      } else {
+        throw new Error("Failed to save")
+      }
+    } catch (error) {
+      console.error("Failed to save model setting:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save model setting. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsModelSaving(false)
+    }
   }
 
   // WordPress handlers
@@ -183,7 +226,63 @@ export function SettingsPanel() {
 
   return (
     <div className="max-w-3xl">
+      {/* AI Model Settings */}
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cpu className="h-5 w-5" />
+            AI Model Settings
+          </CardTitle>
+          <CardDescription>
+            Select the Gemini model used for image analysis and AI search. Pro models offer better quality but higher cost.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="model-select" className="text-sm font-medium">
+              Gemini Model
+            </label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger id="model-select" className="w-full font-mono">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_MODELS.map((model) => (
+                  <SelectItem key={model} value={model} className="font-mono">
+                    {model}
+                    {model === DEFAULT_MODEL && " (default)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Flash Lite models are fastest and cheapest. Pro models provide better analysis quality.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <Button onClick={handleModelSave} disabled={isModelSaving}>
+              {isModelSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save Model
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedModel(DEFAULT_MODEL)}
+              disabled={selectedModel === DEFAULT_MODEL}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset to Default
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Prompt Settings */}
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle>AI Prompt Settings</CardTitle>
           <CardDescription>

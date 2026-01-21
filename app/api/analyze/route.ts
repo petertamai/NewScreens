@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { analyzeImage } from "@/lib/gemini"
+import { analyzeImage, DEFAULT_MODEL } from "@/lib/gemini"
 import { prisma } from "@/lib/prisma"
 import pricing from "@/lib/pricing.json"
 
@@ -18,6 +18,20 @@ export async function POST(request: NextRequest) {
     }
 
     let customInstruction: string | undefined
+    let geminiModel: string = DEFAULT_MODEL
+
+    // Fetch global settings (model and prompt)
+    const globalSettings = await prisma.settings.findMany({
+      where: {
+        key: { in: ["customPrompt", "gemini_model"] }
+      }
+    })
+
+    for (const setting of globalSettings) {
+      if (setting.key === "gemini_model") {
+        geminiModel = setting.value
+      }
+    }
 
     // 1. Check folder's custom prompt first
     if (folderId) {
@@ -33,19 +47,18 @@ export async function POST(request: NextRequest) {
 
     // 2. Fall back to global Settings prompt
     if (!customInstruction) {
-      const setting = await prisma.settings.findUnique({
-        where: { key: "customPrompt" },
-      })
-      if (setting?.value) {
-        customInstruction = setting.value
+      const promptSetting = globalSettings.find(s => s.key === "customPrompt")
+      if (promptSetting?.value) {
+        customInstruction = promptSetting.value
         console.log("[Analyze] Using global settings prompt:", customInstruction.substring(0, 50) + "...")
       }
     }
 
     // 3. analyzeImage uses DEFAULT_INSTRUCTION if undefined
     console.log("[Analyze] Final instruction:", customInstruction ? "CUSTOM" : "DEFAULT")
+    console.log("[Analyze] Using model:", geminiModel)
 
-    const result = await analyzeImage(image, customInstruction)
+    const result = await analyzeImage(image, customInstruction, geminiModel)
 
     // Calculate and save usage
     const { usage } = result

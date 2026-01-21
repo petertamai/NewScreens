@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { prisma } from "@/lib/prisma"
+import { DEFAULT_MODEL } from "@/lib/gemini"
 import pricing from "@/lib/pricing.json"
 
 type PricingData = { input: number; output: number }
 const pricingMap = pricing as Record<string, PricingData>
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
-const MODEL_NAME = "gemini-2.0-flash-lite"
 
 const SYSTEM_PROMPT = `You are a semantic search engine for a screenshot library.
 Given a catalog of screenshots and a user query, find matching screenshots.
@@ -42,6 +42,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch gemini_model from settings
+    const modelSetting = await prisma.settings.findUnique({
+      where: { key: "gemini_model" }
+    })
+    const selectedModel = modelSetting?.value || DEFAULT_MODEL
+
     // Fetch screenshots (limit to 200 most recent for token management)
     const screenshots = await prisma.screenshot.findMany({
       orderBy: { createdAt: "desc" },
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
         results: [],
         reasoning: "No screenshots in the library to search.",
         usage: {
-          model: MODEL_NAME,
+          model: selectedModel,
           promptTokens: 0,
           outputTokens: 0,
           totalCost: 0,
@@ -83,8 +89,9 @@ User Search Query: "${query.trim()}"
 
 Find matching screenshots and return the results as JSON.`
 
-    // Call Gemini API
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME })
+    // Call Gemini API with dynamic model
+    console.log("[AI Search] Using model:", selectedModel)
+    const model = genAI.getGenerativeModel({ model: selectedModel })
     const result = await model.generateContent([
       SYSTEM_PROMPT,
       userPrompt,
@@ -99,7 +106,7 @@ Find matching screenshots and return the results as JSON.`
     const outputTokens = usageMetadata?.candidatesTokenCount ?? 0
 
     // Calculate costs
-    const modelPricing = pricingMap[MODEL_NAME] || { input: 0, output: 0 }
+    const modelPricing = pricingMap[selectedModel] || { input: 0, output: 0 }
     const inputCost = (promptTokens / 1000) * modelPricing.input
     const outputCost = (outputTokens / 1000) * modelPricing.output
     const totalCost = inputCost + outputCost
@@ -107,7 +114,7 @@ Find matching screenshots and return the results as JSON.`
     // Save API usage to database
     await prisma.apiUsage.create({
       data: {
-        model: MODEL_NAME,
+        model: selectedModel,
         promptTokens,
         outputTokens,
         totalTokens: promptTokens + outputTokens,
@@ -149,7 +156,7 @@ Find matching screenshots and return the results as JSON.`
       results: validatedResults,
       reasoning: parsed.reasoning || "",
       usage: {
-        model: MODEL_NAME,
+        model: selectedModel,
         promptTokens,
         outputTokens,
         totalCost,

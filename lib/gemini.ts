@@ -2,7 +2,20 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
 
-const MODEL_NAME = "gemini-2.0-flash-lite"
+export const DEFAULT_MODEL = "gemini-2.0-flash-lite"
+
+export const AVAILABLE_MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-flash-latest",
+  "gemini-2.5-pro",
+  "gemini-3-pro-preview",
+] as const
+
+export type GeminiModel = (typeof AVAILABLE_MODELS)[number]
 
 // Protected JSON format - auto-appended, never editable by users
 export const JSON_OUTPUT_FORMAT = `
@@ -42,8 +55,13 @@ export interface AnalysisResult {
   usage: UsageMetadata
 }
 
-export async function analyzeImage(base64Image: string, customInstruction?: string): Promise<AnalysisResult> {
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME })
+export async function analyzeImage(
+  base64Image: string,
+  customInstruction?: string,
+  modelName?: string
+): Promise<AnalysisResult> {
+  const selectedModel = modelName || DEFAULT_MODEL
+  const model = genAI.getGenerativeModel({ model: selectedModel })
 
   // Build full prompt: instruction + protected JSON format
   const prompt = buildPrompt(customInstruction || DEFAULT_INSTRUCTION)
@@ -67,7 +85,7 @@ export async function analyzeImage(base64Image: string, customInstruction?: stri
   // Extract usage metadata from response
   const usageMetadata = response.usageMetadata
   const usage: UsageMetadata = {
-    model: MODEL_NAME,
+    model: selectedModel,
     promptTokens: usageMetadata?.promptTokenCount ?? 0,
     outputTokens: usageMetadata?.candidatesTokenCount ?? 0,
     totalTokens: usageMetadata?.totalTokenCount ?? 0,
