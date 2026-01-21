@@ -6,13 +6,14 @@ import { Sidebar } from "@/components/sidebar"
 import { PasteZone } from "@/components/paste-zone"
 import { ScreenshotCard } from "@/components/screenshot-card"
 import { Input } from "@/components/ui/input"
-import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy, Settings2 } from "lucide-react"
+import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy, Settings2, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -60,6 +61,8 @@ export default function Home() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false)
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [isQuickPasting, setIsQuickPasting] = useState(false)
   const [activeTab, setActiveTab] = useState("paste")
   const [wpUploadEnabled, setWpUploadEnabled] = useState(true)
@@ -107,6 +110,12 @@ export default function Home() {
     const folder = folders.find(f => f.id.toString() === historyFolderFilter)
     return folder?.name || "Unknown"
   }, [historyFolderFilter, folders])
+
+  // Compute selected folder ID for PasteZone (from sidebar selection)
+  const selectedFolderId = useMemo(() => {
+    const selectedFolder = folders.find(f => f.isSelected)
+    return selectedFolder?.id ?? null
+  }, [folders])
 
   // Fetch library folders
   const fetchFolders = useCallback(async () => {
@@ -256,6 +265,97 @@ export default function Home() {
       })
     } finally {
       setIsBulkDeleting(false)
+    }
+  }
+
+  // Bulk download handler - create zip and download
+  const handleBulkDownload = async () => {
+    setIsBulkDownloading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      const response = await fetch("/api/screenshots/bulk-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+
+      if (!response.ok) throw new Error("Download failed")
+
+      // Trigger browser download
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `screenshots-${Date.now()}.zip`
+      a.click()
+      window.URL.revokeObjectURL(url)
+
+      toast({
+        title: "Downloaded",
+        description: `${ids.length} screenshot(s) downloaded.`,
+      })
+    } catch (error) {
+      console.error("Bulk download error:", error)
+      toast({
+        title: "Download Failed",
+        description: "Could not download selected screenshots.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsBulkDownloading(false)
+    }
+  }
+
+  // Bulk WP sync handler - upload only selected unsynced screenshots
+  const handleBulkWpSync = async () => {
+    const ids = Array.from(selectedIds)
+    // Filter to only unsynced
+    const unsyncedIds = ids.filter(id => {
+      const s = screenshots.find(s => s.id === id)
+      return s && !s.wpImageUrl
+    })
+
+    if (unsyncedIds.length === 0) {
+      toast({
+        title: "Already Synced",
+        description: "All selected screenshots are already uploaded to WordPress.",
+      })
+      return
+    }
+
+    setIsBulkSyncing(true)
+    toast({
+      title: "Syncing to WordPress",
+      description: `Uploading ${unsyncedIds.length} screenshot(s)...`,
+    })
+
+    try {
+      const response = await fetch("/api/wordpress/bulk-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: unsyncedIds }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Sync Complete",
+          description: `Uploaded ${result.uploaded} of ${result.total} screenshot(s).`,
+        })
+        fetchScreenshots()
+      } else {
+        throw new Error(result.message || "Sync failed")
+      }
+    } catch (error) {
+      console.error("Bulk WP sync error:", error)
+      toast({
+        title: "Sync Failed",
+        description: "Could not sync selected screenshots to WordPress.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsBulkSyncing(false)
     }
   }
 
@@ -636,6 +736,7 @@ export default function Home() {
               <PasteZone
                 autoMode={autoMode}
                 onSaveComplete={handleSaveComplete}
+                selectedFolderId={selectedFolderId}
               />
             </TabsContent>
 
@@ -700,6 +801,21 @@ export default function Home() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={handleBulkDownload}
+                        disabled={isBulkDownloading}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        {isBulkDownloading ? "Downloading..." : `Download Selected (${selectedIds.size})`}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleBulkWpSync}
+                        disabled={isBulkSyncing}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {isBulkSyncing ? "Syncing..." : `WP Sync Selected (${selectedIds.size})`}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => setShowBulkDeleteConfirm(true)}

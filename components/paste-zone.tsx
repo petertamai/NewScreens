@@ -10,9 +10,10 @@ import { toast } from "@/hooks/use-toast"
 interface PasteZoneProps {
   autoMode: boolean
   onSaveComplete?: () => void
+  selectedFolderId?: number | null
 }
 
-export function PasteZone({ autoMode, onSaveComplete }: PasteZoneProps) {
+export function PasteZone({ autoMode, onSaveComplete, selectedFolderId }: PasteZoneProps) {
   const [image, setImage] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -38,7 +39,7 @@ export function PasteZone({ autoMode, onSaveComplete }: PasteZoneProps) {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
+        body: JSON.stringify({ image: imageData, folderId: selectedFolderId }),
       })
 
       if (!response.ok) throw new Error("Analysis failed")
@@ -61,7 +62,7 @@ export function PasteZone({ autoMode, onSaveComplete }: PasteZoneProps) {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [])
+  }, [selectedFolderId])
 
   const saveImage = useCallback(async (imageData: string, filename: string, desc: string, aiName: string, tags: string[] = []) => {
     setIsSaving(true)
