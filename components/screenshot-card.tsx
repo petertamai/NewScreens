@@ -176,9 +176,9 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
 
   return (
     <>
-      <Card className={`overflow-hidden group ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+      <Card className={`overflow-hidden group h-full flex flex-col ${isSelected ? 'ring-2 ring-primary' : ''}`}>
         <div
-          className="relative aspect-video cursor-pointer overflow-hidden"
+          className="relative aspect-video cursor-pointer overflow-hidden flex-shrink-0"
           onClick={() => selectionMode ? onSelectChange?.(screenshot.id, !isSelected) : setShowPreview(true)}
         >
           <img
@@ -198,28 +198,50 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
             </div>
           )}
         </div>
-        <CardContent className="p-3">
-          <h3 className="font-medium text-sm truncate" title={screenshot.filename}>
+        <CardContent className="p-3 flex-1 flex flex-col min-h-0">
+          <h3 className="font-medium text-sm truncate flex-shrink-0" title={screenshot.filename}>
             {screenshot.filename}
           </h3>
           {screenshot.description && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p
+              className="text-xs text-muted-foreground mt-1 line-clamp-2 flex-shrink-0"
+              title={screenshot.description}
+            >
               {screenshot.description}
             </p>
           )}
           {parsedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {parsedKeywords.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20"
-                >
-                  {keyword}
-                </span>
-              ))}
+            <div
+              className="mt-2 flex-shrink-0 overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing"
+              onMouseDown={(e) => {
+                const el = e.currentTarget
+                const startX = e.pageX - el.offsetLeft
+                const scrollLeft = el.scrollLeft
+                const onMouseMove = (e: MouseEvent) => {
+                  const x = e.pageX - el.offsetLeft
+                  el.scrollLeft = scrollLeft - (x - startX)
+                }
+                const onMouseUp = () => {
+                  document.removeEventListener("mousemove", onMouseMove)
+                  document.removeEventListener("mouseup", onMouseUp)
+                }
+                document.addEventListener("mousemove", onMouseMove)
+                document.addEventListener("mouseup", onMouseUp)
+              }}
+            >
+              <div className="flex gap-1 pb-1 w-max">
+                {parsedKeywords.map((keyword, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 whitespace-nowrap select-none"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
-          <div className="flex items-center gap-1 mt-2">
+          <div className="flex items-center gap-1 mt-2 flex-shrink-0">
             <p
               className="text-xs text-muted-foreground truncate flex-1"
               title={screenshot.filepath}
@@ -237,7 +259,7 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
             </Button>
           </div>
           {screenshot.wpImageUrl && (
-            <div className="flex items-center gap-1 mt-1">
+            <div className="flex items-center gap-1 mt-1 flex-shrink-0">
               <p
                 className="text-xs text-blue-600 truncate flex-1"
                 title={screenshot.wpImageUrl}
