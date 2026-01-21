@@ -3,6 +3,17 @@ import { prisma } from "@/lib/prisma"
 import fs from "fs/promises"
 import path from "path"
 
+// Helper to resolve filepath to absolute filesystem path
+// Handles both legacy absolute paths and new relative paths
+function resolveFilePath(filepath: string): string {
+  if (filepath.startsWith("/")) {
+    // New relative format - prepend public directory
+    return path.join(process.cwd(), "public", filepath)
+  }
+  // Legacy absolute path - use as-is
+  return filepath
+}
+
 // GET all screenshots or search
 export async function GET(request: NextRequest) {
   try {
@@ -118,15 +129,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete file from disk
-    // If filepath starts with /, it's relative to public/
-    // Otherwise it's an absolute path to a custom folder
-    let filePath: string
-    if (screenshot.filepath.startsWith("/")) {
-      filePath = path.join(process.cwd(), "public", screenshot.filepath)
-    } else {
-      filePath = screenshot.filepath
-    }
-
+    const filePath = resolveFilePath(screenshot.filepath)
     try {
       await fs.unlink(filePath)
     } catch (e) {

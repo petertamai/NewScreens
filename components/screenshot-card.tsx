@@ -36,12 +36,14 @@ interface ScreenshotCardProps {
 }
 
 // Get the proper image URL for display
+// New format: relative paths starting with "/" (e.g., "/screenshots/folder/image.png")
+// Legacy format: absolute Windows paths - still supported via /api/serve/
 function getImageUrl(filepath: string): string {
-  // If filepath starts with /, it's relative to public/
   if (filepath.startsWith("/")) {
+    // New relative format - serve directly from public/
     return filepath
   }
-  // Otherwise it's an absolute path, serve via API
+  // Legacy absolute path - serve via API (backwards compatibility)
   return `/api/serve/${encodeURIComponent(filepath)}`
 }
 
@@ -110,11 +112,22 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
         body: JSON.stringify({ filepath: screenshot.filepath }),
       })
 
-      if (!response.ok) throw new Error("Failed to open folder")
+      const data = await response.json()
+
+      if (response.status === 501) {
+        // Cloud mode - feature not available
+        toast({
+          title: "Not Available",
+          description: "Opening folders is not available in cloud deployments.",
+        })
+        return
+      }
+
+      if (!response.ok) throw new Error(data.error || "Failed to open folder")
 
       toast({
         title: "Folder Opened",
-        description: "Windows Explorer opened to screenshot location.",
+        description: "File explorer opened to screenshot location.",
       })
     } catch (error) {
       console.error("Open folder error:", error)

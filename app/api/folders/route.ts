@@ -19,56 +19,42 @@ export async function GET() {
   }
 }
 
-// Check if a path is absolute (full path)
-function isAbsolutePath(p: string): boolean {
-  return path.isAbsolute(p) || /^[a-zA-Z]:[\\/]/.test(p)
-}
-
 // POST create new folder
+// In cloud-ready mode, all folders are created under public/screenshots/
 export async function POST(request: NextRequest) {
   try {
     const { name, path: folderPath } = await request.json()
 
     if (!folderPath) {
       return NextResponse.json(
-        { error: "Path is required" },
+        { error: "Folder name is required" },
         { status: 400 }
       )
     }
 
-    let normalizedPath: string
+    // Sanitize folder name - remove any path separators to prevent directory traversal
+    const sanitizedFolderName = folderPath
+      .replace(/[/\\]/g, "_")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .substring(0, 100)
 
-    // Check if it's an absolute path or just a folder name
-    if (isAbsolutePath(folderPath)) {
-      // Full path provided - must exist
-      normalizedPath = path.normalize(folderPath)
-
-      try {
-        const stats = await fs.stat(normalizedPath)
-        if (!stats.isDirectory()) {
-          return NextResponse.json(
-            { error: "Path is not a directory" },
-            { status: 400 }
-          )
-        }
-      } catch {
-        return NextResponse.json(
-          { error: "Path does not exist" },
-          { status: 400 }
-        )
-      }
-    } else {
-      // Just a folder name - create as subfolder of public/screenshots
-      const baseDir = path.join(process.cwd(), "public", "screenshots")
-      normalizedPath = path.join(baseDir, folderPath)
-
-      // Create the folder if it doesn't exist
-      await fs.mkdir(normalizedPath, { recursive: true })
+    if (!sanitizedFolderName) {
+      return NextResponse.json(
+        { error: "Invalid folder name" },
+        { status: 400 }
+      )
     }
 
-    // Check if folder already exists in database
+    // Create folder under public/screenshots/
+    const baseDir = path.join(process.cwd(), "public", "screenshots")
+    const fullPath = path.join(baseDir, sanitizedFolderName)
+
+    // Create the folder if it doesn't exist
+    await fs.mkdir(fullPath, { recursive: true })
+
+    // Check if folder already exists in database (by name)
     const existing = await prisma.libraryFolder.findUnique({
-      where: { path: normalizedPath },
+      where: { path: sanitizedFolderName },
     })
 
     if (existing) {
@@ -79,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate name from path if not provided
-    const folderName = name || path.basename(normalizedPath)
+    const folderName = name || sanitizedFolderName
 
     // If this is the first folder, make it selected
     const folderCount = await prisma.libraryFolder.count()
@@ -88,7 +74,7 @@ export async function POST(request: NextRequest) {
     const folder = await prisma.libraryFolder.create({
       data: {
         name: folderName,
-        path: normalizedPath,
+        path: sanitizedFolderName, // Store only the folder name, not full path
         isSelected,
       },
     })

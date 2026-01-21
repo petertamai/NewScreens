@@ -4,6 +4,17 @@ import { WordPressClient } from "@/lib/wordpress"
 import fs from "fs/promises"
 import path from "path"
 
+// Helper to resolve filepath to absolute filesystem path
+// Handles both legacy absolute paths and new relative paths
+function resolveFilePath(filepath: string): string {
+  if (filepath.startsWith("/")) {
+    // New relative format - prepend public directory
+    return path.join(process.cwd(), "public", filepath)
+  }
+  // Legacy absolute path - use as-is
+  return filepath
+}
+
 /**
  * Bulk upload screenshots to WordPress
  * Accepts an array of screenshot IDs and uploads each one
@@ -76,13 +87,7 @@ export async function POST(request: NextRequest) {
 
       try {
         // Read the image file
-        let filePath: string
-        if (screenshot.filepath.startsWith("/")) {
-          filePath = path.join(process.cwd(), "public", screenshot.filepath)
-        } else {
-          filePath = screenshot.filepath
-        }
-
+        const filePath = resolveFilePath(screenshot.filepath)
         const fileBuffer = await fs.readFile(filePath)
         const filename = path.basename(filePath)
 

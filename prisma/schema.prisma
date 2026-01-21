@@ -11,7 +11,7 @@ datasource db {
 model LibraryFolder {
   id          Int          @id @default(autoincrement())
   name        String
-  path        String       @unique
+  path        String       @unique // Folder name/slug only (e.g., "Ozgrind"), stored under public/screenshots/
   isSelected  Boolean      @default(false)
   createdAt   DateTime     @default(now())
   screenshots Screenshot[]
@@ -20,7 +20,7 @@ model LibraryFolder {
 model Screenshot {
   id              Int            @id @default(autoincrement())
   filename        String
-  filepath        String
+  filepath        String         // Relative web path (e.g., "/screenshots/folder/image.png")
   description     String?
   aiSuggestedName String?
   keywords        String? // JSON array: ["keyword1", "keyword2"]

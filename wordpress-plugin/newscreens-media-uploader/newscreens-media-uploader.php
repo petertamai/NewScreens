@@ -1,13 +1,12 @@
 <?php
 /**
- * Plugin Name: NewScreens Media Uploader
- * Plugin URI: https://github.com/your-repo/newscreens-media-uploader
+ * Plugin Name: The Screens Uploader
+ * Plugin URI: https://petertam.pro
  * Description: Secure REST API endpoint for uploading images with metadata from NewScreensNext application.
  * Version: 1.0.0
- * Author: NewScreens Team
- * Author URI: https://example.com
+ * Author: Piotr Tamu
+ * Author URI: https://petertam.pro
  * License: GPL-2.0+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: newscreens-media-uploader
  * Domain Path: /languages
  *

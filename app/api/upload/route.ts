@@ -4,6 +4,21 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { embedImageMetadata } from "@/lib/metadata"
 
+// Helper to check if a path is an absolute Windows/Unix path (legacy format)
+function isAbsolutePath(p: string): boolean {
+  return path.isAbsolute(p) || /^[a-zA-Z]:[\\/]/.test(p)
+}
+
+// Helper to get folder name from path (handles both legacy absolute and new relative formats)
+function getFolderName(folderPath: string): string {
+  if (isAbsolutePath(folderPath)) {
+    // Legacy absolute path - extract folder name
+    return path.basename(folderPath)
+  }
+  // New format - path is just the folder name
+  return folderPath
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { image, filename, targetFolderId, description } = await request.json()
@@ -25,8 +40,11 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now()
     const finalFilename = `${cleanFilename}_${timestamp}.png`
 
+    // Base directory for all screenshots
+    const baseDir = path.join(process.cwd(), "public", "screenshots")
+
     let targetDir: string
-    let filepath: string
+    let relativeFilepath: string
     let folderId: number | null = null
 
     if (targetFolderId) {
@@ -36,14 +54,15 @@ export async function POST(request: NextRequest) {
       })
 
       if (folder) {
-        targetDir = folder.path
-        // Store the absolute path and serve via API
-        filepath = path.join(folder.path, finalFilename)
+        // Get folder name (handles both legacy absolute paths and new format)
+        const folderName = getFolderName(folder.path)
+        targetDir = path.join(baseDir, folderName)
+        relativeFilepath = `/screenshots/${folderName}/${finalFilename}`
         folderId = folder.id
       } else {
         // Fallback to default screenshots directory
-        targetDir = path.join(process.cwd(), "public", "screenshots")
-        filepath = path.join(targetDir, finalFilename)
+        targetDir = baseDir
+        relativeFilepath = `/screenshots/${finalFilename}`
       }
     } else {
       // Check if there's a selected folder
@@ -52,13 +71,14 @@ export async function POST(request: NextRequest) {
       })
 
       if (selectedFolder) {
-        targetDir = selectedFolder.path
-        filepath = path.join(selectedFolder.path, finalFilename)
+        const folderName = getFolderName(selectedFolder.path)
+        targetDir = path.join(baseDir, folderName)
+        relativeFilepath = `/screenshots/${folderName}/${finalFilename}`
         folderId = selectedFolder.id
       } else {
         // Default to public/screenshots
-        targetDir = path.join(process.cwd(), "public", "screenshots")
-        filepath = path.join(targetDir, finalFilename)
+        targetDir = baseDir
+        relativeFilepath = `/screenshots/${finalFilename}`
       }
     }
 
@@ -69,19 +89,21 @@ export async function POST(request: NextRequest) {
     const imageData = image.replace(/^data:image\/\w+;base64,/, "")
     const buffer = Buffer.from(imageData, "base64")
 
-    // filepath is now always the absolute path
-    await fs.writeFile(filepath, buffer)
+    // Write to filesystem using absolute path
+    const absoluteFilepath = path.join(process.cwd(), "public", relativeFilepath)
+    await fs.writeFile(absoluteFilepath, buffer)
 
     // Embed AI description into image EXIF metadata
     if (description) {
-      await embedImageMetadata(filepath, description)
+      await embedImageMetadata(absoluteFilepath, description)
     }
 
-    console.log("[UPLOAD] Returning filepath:", filepath)
+    console.log("[UPLOAD] Returning filepath:", relativeFilepath)
     console.log("[UPLOAD] folderId:", folderId)
 
+    // Return relative filepath for database storage
     return NextResponse.json({
-      filepath,
+      filepath: relativeFilepath,
       filename: finalFilename,
       folderId,
     })
