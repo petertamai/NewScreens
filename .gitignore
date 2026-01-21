@@ -49,6 +49,3 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 
-# user screenshots data (not source code)
-/public/screenshots/*
-!/public/screenshots/.gitkeep
