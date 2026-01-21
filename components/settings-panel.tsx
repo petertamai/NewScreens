@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, RotateCcw, Save, Globe, Key, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, RotateCcw, Save, Globe, Key, CheckCircle2, XCircle, Download } from "lucide-react"
 
 const DEFAULT_PROMPT = `Analyze this screenshot and provide:
 1. A brief description of what the image shows (1-2 sentences)
@@ -238,6 +238,37 @@ export function SettingsPanel() {
           <p className="text-xs text-muted-foreground">
             Note: The prompt should instruct the AI to return a JSON response with &quot;description&quot; and &quot;suggestedFilename&quot; fields.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* WordPress Plugin Download */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            WordPress Plugin
+          </CardTitle>
+          <CardDescription>
+            Download and install the NewScreens Media Uploader plugin on your WordPress site to enable direct uploads.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+            <p className="text-sm font-medium">Installation Instructions:</p>
+            <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+              <li>Download the plugin zip file below</li>
+              <li>Go to WordPress Admin → Plugins → Add New → Upload Plugin</li>
+              <li>Upload the zip file and click "Install Now"</li>
+              <li>Activate the plugin</li>
+              <li>Go to Settings → NewScreens Uploader to get your API key</li>
+            </ol>
+          </div>
+          <Button asChild>
+            <a href="/downloads/newscreens-media-uploader.zip" download>
+              <Download className="h-4 w-4" />
+              Download Plugin (ZIP)
+            </a>
+          </Button>
         </CardContent>
       </Card>
 

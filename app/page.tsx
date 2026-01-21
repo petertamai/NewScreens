@@ -600,7 +600,7 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger value="history" className="gap-2">
                 <History className="h-4 w-4" />
-                History
+                Screenshots
               </TabsTrigger>
               <TabsTrigger value="search" className="gap-2">
                 <Search className="h-4 w-4" />
@@ -651,7 +651,7 @@ export default function Home() {
                 </div>
               )}
               <div className="flex items-center gap-4 mb-4">
-                <h2 className="text-lg font-semibold">Screenshot History</h2>
+                <h2 className="text-lg font-semibold">Screenshots</h2>
                 <div className="flex items-center gap-2">
                   <Switch
                     id="wp-upload-toggle"

@@ -106,11 +106,6 @@ export function LibraryFolders({ folders, onFoldersChange }: LibraryFoldersProps
     onFoldersChange()
   }
 
-  const truncatePath = (path: string, maxLength: number = 25) => {
-    if (path.length <= maxLength) return path
-    return "..." + path.slice(-maxLength)
-  }
-
   return (
     <>
       <Card>
@@ -147,9 +142,6 @@ export function LibraryFolders({ folders, onFoldersChange }: LibraryFoldersProps
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">Root</p>
-              <p className="text-xs text-muted-foreground truncate">
-                public/screenshots
-              </p>
             </div>
           </div>
 
@@ -171,12 +163,6 @@ export function LibraryFolders({ folders, onFoldersChange }: LibraryFoldersProps
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{folder.name}</p>
-                <p
-                  className="text-xs text-muted-foreground truncate"
-                  title={folder.path}
-                >
-                  {truncatePath(folder.path)}
-                </p>
               </div>
               <Button
                 variant="ghost"
