@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import { WordPressClient } from "@/lib/wordpress"
 import fs from "fs/promises"
 import path from "path"
@@ -29,6 +30,7 @@ function getBasename(filepath: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { screenshotId } = await request.json()
 
     if (!screenshotId) {
@@ -38,9 +40,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get WordPress settings
+    // Get WordPress settings for this user
     const settings = await prisma.settings.findMany({
       where: {
+        userId: user.id,
         key: {
           in: ["wordpress_site_url", "wordpress_api_key"],
         },
@@ -62,9 +65,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get screenshot from database
-    const screenshot = await prisma.screenshot.findUnique({
-      where: { id: screenshotId },
+    // Get screenshot from database (only if belongs to user)
+    const screenshot = await prisma.screenshot.findFirst({
+      where: { id: screenshotId, userId: user.id },
     })
 
     if (!screenshot) {

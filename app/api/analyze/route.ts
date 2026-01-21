@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { analyzeImage, DEFAULT_MODEL } from "@/lib/gemini"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import pricing from "@/lib/pricing.json"
 
 type PricingData = { input: number; output: number }
@@ -8,6 +9,7 @@ const pricingMap = pricing as Record<string, PricingData>
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { image, folderId } = await request.json()
 
     if (!image) {
@@ -20,9 +22,10 @@ export async function POST(request: NextRequest) {
     let customInstruction: string | undefined
     let geminiModel: string = DEFAULT_MODEL
 
-    // Fetch global settings (model and prompt)
+    // Fetch user's settings (model and prompt)
     const globalSettings = await prisma.settings.findMany({
       where: {
+        userId: user.id,
         key: { in: ["customPrompt", "gemini_model"] }
       }
     })
@@ -33,10 +36,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 1. Check folder's custom prompt first
+    // 1. Check folder's custom prompt first (must belong to user)
     if (folderId) {
-      const folder = await prisma.libraryFolder.findUnique({
-        where: { id: folderId },
+      const folder = await prisma.libraryFolder.findFirst({
+        where: { id: folderId, userId: user.id },
         select: { customPrompt: true },
       })
       if (folder?.customPrompt) {
@@ -76,6 +79,7 @@ export async function POST(request: NextRequest) {
         inputCost,
         outputCost,
         totalCost,
+        userId: user.id,
       },
     })
 

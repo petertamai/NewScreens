@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import { DEFAULT_MODEL } from "@/lib/gemini"
 import pricing from "@/lib/pricing.json"
 
@@ -33,6 +34,7 @@ interface AIResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { query } = await request.json()
 
     if (!query || typeof query !== "string" || !query.trim()) {
@@ -42,14 +44,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch gemini_model from settings
-    const modelSetting = await prisma.settings.findUnique({
-      where: { key: "gemini_model" }
+    // Fetch gemini_model from user's settings
+    const modelSetting = await prisma.settings.findFirst({
+      where: { key: "gemini_model", userId: user.id }
     })
     const selectedModel = modelSetting?.value || DEFAULT_MODEL
 
-    // Fetch screenshots (limit to 200 most recent for token management)
+    // Fetch user's screenshots (limit to 200 most recent for token management)
     const screenshots = await prisma.screenshot.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 200,
       select: {
@@ -121,6 +124,7 @@ Find matching screenshots and return the results as JSON.`
         inputCost,
         outputCost,
         totalCost,
+        userId: user.id,
       },
     })
 

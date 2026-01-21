@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import pricing from "@/lib/pricing.json"
 
 type PricingData = { input: number; output: number }
@@ -7,7 +8,9 @@ const pricingMap = pricing as Record<string, PricingData>
 
 export async function GET() {
   try {
+    const user = await requireAuth()
     const usageRecords = await prisma.apiUsage.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: "desc" },
     })
 
@@ -50,6 +53,9 @@ export async function GET() {
       byDay,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to fetch usage stats:", error)
     return NextResponse.json(
       { error: "Failed to fetch usage stats" },
@@ -60,6 +66,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { model, promptTokens, outputTokens, totalTokens, screenshotId } = await request.json()
 
     // Calculate costs based on pricing (per 1K tokens)
@@ -78,11 +85,15 @@ export async function POST(request: NextRequest) {
         outputCost,
         totalCost,
         screenshotId: screenshotId || null,
+        userId: user.id,
       },
     })
 
     return NextResponse.json(usage)
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to record usage:", error)
     return NextResponse.json(
       { error: "Failed to record usage" },

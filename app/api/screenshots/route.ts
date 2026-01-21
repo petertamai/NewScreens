@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import fs from "fs/promises"
 import path from "path"
 
@@ -17,25 +18,30 @@ function resolveFilePath(filepath: string): string {
 // GET all screenshots or search
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get("q")
 
     const screenshots = await prisma.screenshot.findMany({
-      where: query
-        ? {
-            OR: [
-              { filename: { contains: query } },
-              { description: { contains: query } },
-              { aiSuggestedName: { contains: query } },
-              { keywords: { contains: query } },
-            ],
-          }
-        : undefined,
+      where: {
+        userId: user.id,
+        ...(query && {
+          OR: [
+            { filename: { contains: query } },
+            { description: { contains: query } },
+            { aiSuggestedName: { contains: query } },
+            { keywords: { contains: query } },
+          ],
+        }),
+      },
       orderBy: { createdAt: "desc" },
     })
 
     return NextResponse.json(screenshots)
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to fetch screenshots:", error)
     return NextResponse.json(
       { error: "Failed to fetch screenshots" },
@@ -47,6 +53,7 @@ export async function GET(request: NextRequest) {
 // POST create new screenshot record
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { filename, filepath, description, aiSuggestedName, folderId, keywords } = await request.json()
 
     const screenshot = await prisma.screenshot.create({
@@ -57,11 +64,15 @@ export async function POST(request: NextRequest) {
         aiSuggestedName,
         keywords: keywords ? JSON.stringify(keywords) : null,
         folderId: folderId || null,
+        userId: user.id,
       },
     })
 
     return NextResponse.json(screenshot)
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to create screenshot:", error)
     return NextResponse.json(
       { error: "Failed to create screenshot" },
@@ -73,6 +84,7 @@ export async function POST(request: NextRequest) {
 // PATCH update screenshot (for WordPress URL updates)
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get("id")
 
@@ -86,16 +98,24 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { wpImageUrl, wpAttachmentId } = body
 
-    const screenshot = await prisma.screenshot.update({
-      where: { id: parseInt(id) },
+    // Only update if screenshot belongs to user
+    const screenshot = await prisma.screenshot.updateMany({
+      where: { id: parseInt(id), userId: user.id },
       data: {
         ...(wpImageUrl !== undefined && { wpImageUrl }),
         ...(wpAttachmentId !== undefined && { wpAttachmentId }),
       },
     })
 
-    return NextResponse.json(screenshot)
+    if (screenshot.count === 0) {
+      return NextResponse.json({ error: "Screenshot not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to update screenshot:", error)
     return NextResponse.json(
       { error: "Failed to update screenshot" },
@@ -107,6 +127,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE screenshot
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get("id")
 
@@ -117,8 +138,9 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const screenshot = await prisma.screenshot.findUnique({
-      where: { id: parseInt(id) },
+    // Only find if it belongs to user
+    const screenshot = await prisma.screenshot.findFirst({
+      where: { id: parseInt(id), userId: user.id },
     })
 
     if (!screenshot) {
@@ -143,6 +165,9 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Failed to delete screenshot:", error)
     return NextResponse.json(
       { error: "Failed to delete screenshot" },

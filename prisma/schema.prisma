@@ -11,26 +11,30 @@ datasource db {
 model LibraryFolder {
   id           Int          @id @default(autoincrement())
   name         String
-  path         String       @unique // Folder name/slug only (e.g., "Ozgrind"), stored under public/screenshots/
+  path         String       @unique
   isSelected   Boolean      @default(false)
-  customPrompt String?      // Folder-specific AI prompt (instruction part only)
+  customPrompt String?
   createdAt    DateTime     @default(now())
+  userId       String?
+  User         User?        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   screenshots  Screenshot[]
 }
 
 model Screenshot {
   id              Int            @id @default(autoincrement())
   filename        String
-  filepath        String         // Relative web path (e.g., "/screenshots/folder/image.png")
+  filepath        String
   description     String?
   aiSuggestedName String?
-  keywords        String? // JSON array: ["keyword1", "keyword2"]
-  wpImageUrl      String?        // WordPress media library URL
-  wpAttachmentId  Int?           // WordPress attachment ID
+  keywords        String?
+  wpImageUrl      String?
+  wpAttachmentId  Int?
   createdAt       DateTime       @default(now())
-  apiUsage        ApiUsage[]
   folderId        Int?
+  userId          String?
+  apiUsage        ApiUsage[]
   folder          LibraryFolder? @relation(fields: [folderId], references: [id])
+  User            User?          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model ApiUsage {
@@ -44,8 +48,9 @@ model ApiUsage {
   totalCost    Float
   screenshotId Int?
   createdAt    DateTime    @default(now())
-
+  userId       String?
   screenshot   Screenshot? @relation(fields: [screenshotId], references: [id])
+  User         User?       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model Settings {
@@ -53,21 +58,26 @@ model Settings {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+  userId    String?
+  User      User?    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, key])
 }
 
 model User {
-  id            String    @id
+  id            String          @id
   name          String
-  email         String
+  email         String          @unique
   emailVerified Boolean
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
-
-  sessions      Session[]
   accounts      Account[]
-
-  @@unique([email])
+  ApiUsage      ApiUsage[]
+  LibraryFolder LibraryFolder[]
+  Screenshot    Screenshot[]
+  sessions      Session[]
+  Settings      Settings[]
 }
 
 model Session {
@@ -79,8 +89,7 @@ model Session {
   ipAddress String?
   userAgent String?
   userId    String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -97,12 +106,11 @@ model Account {
   password              String?
   createdAt             DateTime
   updatedAt             DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Verification {
-  id         String   @id
+  id         String    @id
   identifier String
   value      String
   expiresAt  DateTime

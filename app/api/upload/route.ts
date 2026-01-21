@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import fs from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import { embedImageMetadata } from "@/lib/metadata"
 
 // Helper to get folder name from path (handles both Windows and Unix paths cross-platform)
@@ -15,6 +16,7 @@ function getFolderName(folderPath: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { image, filename, targetFolderId, description } = await request.json()
 
     if (!image || !filename) {
@@ -42,9 +44,9 @@ export async function POST(request: NextRequest) {
     let folderId: number | null = null
 
     if (targetFolderId) {
-      // Get the folder from database
-      const folder = await prisma.libraryFolder.findUnique({
-        where: { id: targetFolderId },
+      // Get the folder from database (must belong to user)
+      const folder = await prisma.libraryFolder.findFirst({
+        where: { id: targetFolderId, userId: user.id },
       })
 
       if (folder) {
@@ -59,9 +61,9 @@ export async function POST(request: NextRequest) {
         relativeFilepath = `/screenshots/${finalFilename}`
       }
     } else {
-      // Check if there's a selected folder
+      // Check if there's a selected folder for this user
       const selectedFolder = await prisma.libraryFolder.findFirst({
-        where: { isSelected: true },
+        where: { isSelected: true, userId: user.id },
       })
 
       if (selectedFolder) {

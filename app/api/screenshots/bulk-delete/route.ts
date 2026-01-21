@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/auth-utils"
 import fs from "fs/promises"
 import path from "path"
 
@@ -16,6 +17,7 @@ function resolveFilePath(filepath: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth()
     const { ids } = await request.json()
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -25,9 +27,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get all screenshots to delete
+    // Get all screenshots to delete (only user's screenshots)
     const screenshots = await prisma.screenshot.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, userId: user.id },
     })
 
     // Delete files from disk
@@ -40,13 +42,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Delete from database
+    // Delete from database (only user's screenshots)
     const result = await prisma.screenshot.deleteMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, userId: user.id },
     })
 
     return NextResponse.json({ deleted: result.count })
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     console.error("Bulk delete error:", error)
     return NextResponse.json(
       { error: "Failed to delete screenshots" },
