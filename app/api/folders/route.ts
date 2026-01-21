@@ -142,10 +142,10 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// PATCH select/deselect folder
+// PATCH select/deselect folder or update customPrompt
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, isSelected, deselectAll } = await request.json()
+    const { id, isSelected, deselectAll, customPrompt } = await request.json()
 
     // Deselect all folders (select Root)
     if (deselectAll) {
@@ -162,16 +162,27 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Build update data object
+    const updateData: { isSelected?: boolean; customPrompt?: string | null } = {}
+
     // If selecting this folder, deselect all others first
-    if (isSelected) {
-      await prisma.libraryFolder.updateMany({
-        data: { isSelected: false },
-      })
+    if (isSelected !== undefined) {
+      if (isSelected) {
+        await prisma.libraryFolder.updateMany({
+          data: { isSelected: false },
+        })
+      }
+      updateData.isSelected = isSelected
+    }
+
+    // If customPrompt provided in request, update it
+    if (customPrompt !== undefined) {
+      updateData.customPrompt = customPrompt || null  // empty string = clear
     }
 
     const folder = await prisma.libraryFolder.update({
       where: { id: parseInt(id) },
-      data: { isSelected },
+      data: updateData,
     })
 
     return NextResponse.json(folder)

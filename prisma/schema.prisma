@@ -9,12 +9,13 @@ datasource db {
 }
 
 model LibraryFolder {
-  id          Int          @id @default(autoincrement())
-  name        String
-  path        String       @unique // Folder name/slug only (e.g., "Ozgrind"), stored under public/screenshots/
-  isSelected  Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  screenshots Screenshot[]
+  id           Int          @id @default(autoincrement())
+  name         String
+  path         String       @unique // Folder name/slug only (e.g., "Ozgrind"), stored under public/screenshots/
+  isSelected   Boolean      @default(false)
+  customPrompt String?      // Folder-specific AI prompt (instruction part only)
+  createdAt    DateTime     @default(now())
+  screenshots  Screenshot[]
 }
 
 model Screenshot {

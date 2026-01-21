@@ -6,16 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, RotateCcw, Save, Globe, Key, CheckCircle2, XCircle, Download } from "lucide-react"
-
-const DEFAULT_PROMPT = `Analyze this screenshot and provide:
-1. A brief description of what the image shows (1-2 sentences)
-2. A suggested filename that describes the content (no extension, use underscores for spaces, lowercase, max 50 chars)
-
-Respond in this exact JSON format:
-{
-  "description": "your description here",
-  "suggestedFilename": "suggested_filename_here"
-}`
+import { DEFAULT_INSTRUCTION, JSON_OUTPUT_FORMAT } from "@/lib/gemini"
 
 export function SettingsPanel() {
   const [prompt, setPrompt] = useState("")
@@ -47,7 +38,7 @@ export function SettingsPanel() {
         }
       } catch (error) {
         console.error("Failed to fetch settings:", error)
-        setPrompt(DEFAULT_PROMPT)
+        setPrompt(DEFAULT_INSTRUCTION)
       } finally {
         setIsLoading(false)
       }
@@ -88,7 +79,7 @@ export function SettingsPanel() {
   }
 
   const handleReset = () => {
-    setPrompt(DEFAULT_PROMPT)
+    setPrompt(DEFAULT_INSTRUCTION)
   }
 
   // WordPress handlers
@@ -202,7 +193,7 @@ export function SettingsPanel() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="prompt" className="text-sm font-medium">
-              Analysis Prompt
+              Analysis Instructions (Global Default)
               {!isDefault && (
                 <span className="ml-2 text-xs text-muted-foreground">(customized)</span>
               )}
@@ -211,9 +202,18 @@ export function SettingsPanel() {
               id="prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full min-h-[250px] p-3 rounded-md border border-input bg-background text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              placeholder="Enter your custom prompt..."
+              className="w-full min-h-[180px] p-3 rounded-md border border-input bg-background text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              placeholder="Enter your custom instructions..."
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+              JSON Output Format (auto-appended, read-only)
+            </label>
+            <pre className="w-full p-3 rounded-md border border-input bg-muted/50 text-xs font-mono text-muted-foreground whitespace-pre-wrap">
+              {JSON_OUTPUT_FORMAT.trim()}
+            </pre>
           </div>
 
           <div className="flex gap-3">
@@ -228,7 +228,7 @@ export function SettingsPanel() {
             <Button
               variant="outline"
               onClick={handleReset}
-              disabled={prompt === DEFAULT_PROMPT}
+              disabled={prompt === DEFAULT_INSTRUCTION}
             >
               <RotateCcw className="h-4 w-4" />
               Reset to Default
@@ -236,7 +236,7 @@ export function SettingsPanel() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Note: The prompt should instruct the AI to return a JSON response with &quot;description&quot; and &quot;suggestedFilename&quot; fields.
+            The JSON output format is automatically appended to your instructions. Individual folders can override this prompt via the Screenshots tab toolbar.
           </p>
         </CardContent>
       </Card>

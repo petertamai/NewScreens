@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar"
 import { PasteZone } from "@/components/paste-zone"
 import { ScreenshotCard } from "@/components/screenshot-card"
 import { Input } from "@/components/ui/input"
-import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy } from "lucide-react"
+import { Clipboard, History, Search, Loader2, Settings, ChevronDown, Trash2, Upload, RefreshCw, Copy, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast"
 import { SettingsPanel } from "@/components/settings-panel"
 import { LibraryFolder } from "@/components/library-folders"
 import { FolderCombobox } from "@/components/folder-combobox"
+import { FolderPromptModal } from "@/components/folder-prompt-modal"
 import { Switch } from "@/components/ui/switch"
 
 interface Screenshot {
@@ -65,6 +66,7 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [isHistoryDragOver, setIsHistoryDragOver] = useState(false)
   const [dropProgress, setDropProgress] = useState<{current: number, total: number} | null>(null)
+  const [showPromptModal, setShowPromptModal] = useState(false)
 
   // Filter screenshots based on selected folder and search term
   const filteredScreenshots = useMemo(() => {
@@ -90,6 +92,21 @@ export default function Home() {
 
     return result
   }, [screenshots, historyFolderFilter, historySearchTerm])
+
+  // Compute current folder info for prompt modal
+  const currentFolderId = useMemo(() => {
+    if (historyFolderFilter === "all" || historyFolderFilter === "root") {
+      return null
+    }
+    return parseInt(historyFolderFilter)
+  }, [historyFolderFilter])
+
+  const currentFolderName = useMemo(() => {
+    if (historyFolderFilter === "all") return "All Folders"
+    if (historyFolderFilter === "root") return "Root"
+    const folder = folders.find(f => f.id.toString() === historyFolderFilter)
+    return folder?.name || "Unknown"
+  }, [historyFolderFilter, folders])
 
   // Fetch library folders
   const fetchFolders = useCallback(async () => {
@@ -259,16 +276,7 @@ export default function Home() {
           setIsQuickPasting(true)
 
           try {
-            // 1. Analyze image
-            const analyzeRes = await fetch("/api/analyze", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ image: imageData }),
-            })
-            if (!analyzeRes.ok) throw new Error("Analysis failed")
-            const analysis = await analyzeRes.json()
-
-            // 2. Determine target folder based on historyFolderFilter
+            // 1. Determine target folder based on historyFolderFilter
             let targetFolderId: number | null | undefined = undefined
             if (historyFolderFilter === "root") {
               targetFolderId = null  // Explicitly save to root
@@ -279,6 +287,15 @@ export default function Home() {
               const selectedFolder = folders.find(f => f.isSelected)
               targetFolderId = selectedFolder ? selectedFolder.id : null
             }
+
+            // 2. Analyze image with folder context for prompt resolution
+            const analyzeRes = await fetch("/api/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: imageData, folderId: targetFolderId }),
+            })
+            if (!analyzeRes.ok) throw new Error("Analysis failed")
+            const analysis = await analyzeRes.json()
 
             // 3. Upload image
             const uploadRes = await fetch("/api/upload", {
@@ -340,16 +357,7 @@ export default function Home() {
 
   // Process a single dropped image through the full pipeline
   const processDroppedImage = useCallback(async (imageData: string) => {
-    // 1. Analyze image
-    const analyzeRes = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: imageData }),
-    })
-    if (!analyzeRes.ok) throw new Error("Analysis failed")
-    const analysis = await analyzeRes.json()
-
-    // 2. Determine target folder based on historyFolderFilter
+    // 1. Determine target folder based on historyFolderFilter
     let targetFolderId: number | null | undefined = undefined
     if (historyFolderFilter === "root") {
       targetFolderId = null
@@ -359,6 +367,15 @@ export default function Home() {
       const selectedFolder = folders.find(f => f.isSelected)
       targetFolderId = selectedFolder ? selectedFolder.id : null
     }
+
+    // 2. Analyze image with folder context for prompt resolution
+    const analyzeRes = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData, folderId: targetFolderId }),
+    })
+    if (!analyzeRes.ok) throw new Error("Analysis failed")
+    const analysis = await analyzeRes.json()
 
     // 3. Upload image
     const uploadRes = await fetch("/api/upload", {
@@ -650,38 +667,18 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-4 mb-4">
-                <h2 className="text-lg font-semibold">Screenshots</h2>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="wp-upload-toggle"
-                    checked={wpUploadEnabled}
-                    onCheckedChange={handleWpUploadChange}
-                  />
-                  <label
-                    htmlFor="wp-upload-toggle"
-                    className="text-sm text-muted-foreground flex items-center gap-1 cursor-pointer"
-                  >
-                    <Upload className="h-3 w-3" />
-                    Auto-upload to WordPress
-                  </label>
-                </div>
+              <div className="flex items-center gap-2 mb-4">
+                <FolderCombobox
+                  folders={folders}
+                  value={historyFolderFilter}
+                  onChange={setHistoryFolderFilter}
+                />
                 <Button
-                  variant="outline"
+                  variant={selectionMode ? "default" : "outline"}
                   size="sm"
-                  onClick={handleSyncToWordPress}
-                  disabled={isSyncing}
+                  onClick={toggleSelectionMode}
                 >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Syncing...' : 'Sync to WordPress'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyPrompt}
-                >
-                  <Copy className="h-3 w-3 mr-1" />
-                  Copy Prompt
+                  {selectionMode ? "Done" : "Select"}
                 </Button>
                 {selectionMode && (
                   <div className="flex items-center gap-2">
@@ -713,25 +710,53 @@ export default function Home() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
-                <div className="flex-1 flex justify-center">
-                  <Input
-                    placeholder="Search history..."
-                    value={historySearchTerm}
-                    onChange={(e) => setHistorySearchTerm(e.target.value)}
-                    className="max-w-xs"
-                  />
-                </div>
                 <Button
-                  variant={selectionMode ? "default" : "outline"}
+                  variant="outline"
                   size="sm"
-                  onClick={toggleSelectionMode}
+                  onClick={handleSyncToWordPress}
+                  disabled={isSyncing}
                 >
-                  {selectionMode ? "Done" : "Select"}
+                  <RefreshCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Syncing...' : 'Sync to WP'}
                 </Button>
-                <FolderCombobox
-                  folders={folders}
-                  value={historyFolderFilter}
-                  onChange={setHistoryFolderFilter}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPromptModal(true)}
+                  title={`Edit AI prompt for ${currentFolderName}`}
+                  disabled={historyFolderFilter === "all"}
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyPrompt}
+                  title="Copy screenshot data as JSON"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Copy
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="wp-upload-toggle"
+                    checked={wpUploadEnabled}
+                    onCheckedChange={handleWpUploadChange}
+                  />
+                  <label
+                    htmlFor="wp-upload-toggle"
+                    className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Auto WP
+                  </label>
+                </div>
+                <div className="flex-1" />
+                <Input
+                  placeholder="Search..."
+                  value={historySearchTerm}
+                  onChange={(e) => setHistorySearchTerm(e.target.value)}
+                  className="max-w-xs"
                 />
               </div>
               {isLoading ? (
@@ -786,6 +811,15 @@ export default function Home() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              {/* Folder Prompt Modal */}
+              <FolderPromptModal
+                open={showPromptModal}
+                onOpenChange={setShowPromptModal}
+                folderId={currentFolderId}
+                folderName={currentFolderName}
+                onSave={fetchFolders}
+              />
               </div>
             </TabsContent>
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { DEFAULT_PROMPT } from "@/lib/gemini"
+import { DEFAULT_INSTRUCTION } from "@/lib/gemini"
 
 export async function GET() {
   try {
@@ -13,7 +13,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      customPrompt: settingsMap["customPrompt"] || DEFAULT_PROMPT,
+      customPrompt: settingsMap["customPrompt"] || DEFAULT_INSTRUCTION,
       isDefault: !settingsMap["customPrompt"],
       wordpress_site_url: settingsMap["wordpress_site_url"] || "",
       wordpress_api_key: settingsMap["wordpress_api_key"] || "",
@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // If the prompt is the same as default, delete the setting
-      if (customPrompt === DEFAULT_PROMPT) {
+      // If the prompt is the same as default or empty, delete the setting
+      if (customPrompt === DEFAULT_INSTRUCTION || customPrompt === "") {
         await prisma.settings.deleteMany({
           where: { key: "customPrompt" },
         })

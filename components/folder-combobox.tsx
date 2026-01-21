@@ -51,7 +51,7 @@ export function FolderCombobox({ folders, value, onChange }: FolderComboboxProps
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-56 justify-between"
+          className="min-w-[300px] justify-between"
         >
           <span className="flex items-center gap-2 truncate">
             <FolderOpen className="h-4 w-4 flex-shrink-0" />
@@ -62,7 +62,7 @@ export function FolderCombobox({ folders, value, onChange }: FolderComboboxProps
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="end">
+      <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Search folders..." />
           <CommandList>
@@ -71,7 +71,7 @@ export function FolderCombobox({ folders, value, onChange }: FolderComboboxProps
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.label} ${option.path}`}
+                  value={option.label}
                   onSelect={() => {
                     onChange(option.value)
                     setOpen(false)
@@ -83,14 +83,7 @@ export function FolderCombobox({ folders, value, onChange }: FolderComboboxProps
                       value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate">{option.label}</p>
-                    {option.path && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {option.path}
-                      </p>
-                    )}
-                  </div>
+                  <span className="truncate">{option.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

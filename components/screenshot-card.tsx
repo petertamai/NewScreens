@@ -295,15 +295,15 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
 
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>{screenshot.filename}</DialogTitle>
             {screenshot.description && (
               <DialogDescription>{screenshot.description}</DialogDescription>
             )}
           </DialogHeader>
           {parsedKeywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 flex-shrink-0">
               {parsedKeywords.map((keyword, index) => (
                 <span
                   key={index}
@@ -314,14 +314,14 @@ export function ScreenshotCard({ screenshot, onDelete, selectionMode, isSelected
               ))}
             </div>
           )}
-          <div className="mt-4">
+          <div className="flex-1 min-h-0 overflow-auto mt-4">
             <img
               src={imageUrl}
               alt={screenshot.description || screenshot.filename}
               className="w-full rounded-lg"
             />
           </div>
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex justify-between items-center mt-4 flex-shrink-0">
             <span className="text-sm text-muted-foreground">{formattedDate}</span>
             <Button variant="outline" onClick={handleOpenFile}>
               <ExternalLink className="h-4 w-4 mr-2" />
