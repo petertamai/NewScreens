@@ -397,7 +397,10 @@ export default function Home() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ image: imageData, folderId: targetFolderId }),
             })
-            if (!analyzeRes.ok) throw new Error("Analysis failed")
+            if (!analyzeRes.ok) {
+              const errorData = await analyzeRes.json().catch(() => ({}))
+              throw new Error(errorData.error || "Analysis failed")
+            }
             const analysis = await analyzeRes.json()
 
             // 3. Upload image
@@ -477,7 +480,10 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image: imageData, folderId: targetFolderId }),
     })
-    if (!analyzeRes.ok) throw new Error("Analysis failed")
+    if (!analyzeRes.ok) {
+      const errorData = await analyzeRes.json().catch(() => ({}))
+      throw new Error(errorData.error || "Analysis failed")
+    }
     const analysis = await analyzeRes.json()
 
     // 3. Upload image
@@ -668,11 +674,11 @@ export default function Home() {
         body: JSON.stringify({ query: aiSearchQuery }),
       })
 
-      if (!response.ok) {
-        throw new Error("Search failed")
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Search failed")
+      }
 
       // Map AI results to full screenshot objects
       const resultsWithScreenshots = (data.results || [])
