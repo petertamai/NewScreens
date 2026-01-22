@@ -1,20 +1,16 @@
 import sharp from "sharp"
-import fs from "fs/promises"
 
-export async function embedImageMetadata(
-  filePath: string,
+// Embed metadata into a buffer and return the new buffer
+export async function embedImageMetadataToBuffer(
+  inputBuffer: Buffer,
   description: string
-): Promise<void> {
-  if (!description) return
+): Promise<Buffer> {
+  if (!description) return inputBuffer
 
   const startTime = Date.now()
-  console.log(`[EXIF] Starting metadata embed for: ${filePath}`)
+  console.log(`[EXIF] Starting metadata embed (${inputBuffer.length} bytes)`)
 
   try {
-    // Read the file
-    const inputBuffer = await fs.readFile(filePath)
-    console.log(`[EXIF] Read file (${inputBuffer.length} bytes) in ${Date.now() - startTime}ms`)
-
     // Process with Sharp - embed EXIF metadata
     const outputBuffer = await sharp(inputBuffer)
       .withMetadata({
@@ -27,13 +23,11 @@ export async function embedImageMetadata(
       .png()
       .toBuffer()
 
-    console.log(`[EXIF] Processed image in ${Date.now() - startTime}ms`)
-
-    // Write back to file
-    await fs.writeFile(filePath, outputBuffer)
-    console.log(`[EXIF] ✓ Metadata embedded successfully in ${Date.now() - startTime}ms total`)
+    console.log(`[EXIF] ✓ Metadata embedded successfully in ${Date.now() - startTime}ms`)
+    return outputBuffer
   } catch (error) {
     console.error(`[EXIF] ✗ Failed to embed metadata:`, error)
-    // Non-fatal - file is still saved
+    // Non-fatal - return original buffer
+    return inputBuffer
   }
 }

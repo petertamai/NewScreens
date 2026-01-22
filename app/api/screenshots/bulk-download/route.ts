@@ -2,20 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth-utils"
 import archiver from "archiver"
-import fs from "fs"
-import path from "path"
 import { PassThrough } from "stream"
-
-// Helper to resolve filepath to absolute filesystem path
-// Handles both legacy absolute paths and new relative paths
-function resolveFilePath(filepath: string): string {
-  if (filepath.startsWith("/")) {
-    // New relative format - prepend public directory
-    return path.join(process.cwd(), "public", filepath)
-  }
-  // Legacy absolute path - use as-is
-  return filepath
-}
+import { getFromR2, filepathToR2Key } from "@/lib/s3"
 
 // Helper to get basename from path (handles both Windows and Unix paths cross-platform)
 // On Linux, path.basename('C:\\Users\\...\\file.png') returns the entire string because
@@ -60,16 +48,16 @@ export async function POST(request: NextRequest) {
     // Pipe archive to passthrough
     archive.pipe(passthrough)
 
-    // Add each file to archive
+    // Add each file to archive from R2
     for (const screenshot of screenshots) {
-      const filePath = resolveFilePath(screenshot.filepath)
+      const r2Key = filepathToR2Key(screenshot.filepath)
 
-      // Check if file exists
-      if (fs.existsSync(filePath)) {
-        const filename = screenshot.filename || getBasename(filePath)
-        archive.file(filePath, { name: filename })
-      } else {
-        console.warn(`File not found: ${filePath}`)
+      try {
+        const fileBuffer = await getFromR2(r2Key)
+        const filename = screenshot.filename || getBasename(screenshot.filepath)
+        archive.append(fileBuffer, { name: filename })
+      } catch (e) {
+        console.warn(`File not found in R2: ${r2Key}`, e)
       }
     }
 

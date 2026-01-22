@@ -55,7 +55,7 @@ model ApiUsage {
 
 model Settings {
   id        Int      @id @default(autoincrement())
-  key       String   @unique
+  key       String
   value     String
   updatedAt DateTime @updatedAt
   userId    String?

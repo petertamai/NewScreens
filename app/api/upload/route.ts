@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import fs from "fs/promises"
-import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth-utils"
-import { embedImageMetadata } from "@/lib/metadata"
+import { embedImageMetadataToBuffer } from "@/lib/metadata"
+import { uploadToR2 } from "@/lib/s3"
 
 // Helper to get folder name from path (handles both Windows and Unix paths cross-platform)
 // On Linux, path.basename('C:\\Users\\...\\Folder') returns the entire string because
@@ -36,10 +35,7 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now()
     const finalFilename = `${cleanFilename}_${timestamp}.png`
 
-    // Base directory for all screenshots
-    const baseDir = path.join(process.cwd(), "public", "screenshots")
-
-    let targetDir: string
+    let folderName: string | null = null
     let relativeFilepath: string
     let folderId: number | null = null
 
@@ -51,13 +47,11 @@ export async function POST(request: NextRequest) {
 
       if (folder) {
         // Get folder name (handles both legacy absolute paths and new format)
-        const folderName = getFolderName(folder.path)
-        targetDir = path.join(baseDir, folderName)
+        folderName = getFolderName(folder.path)
         relativeFilepath = `/screenshots/${folderName}/${finalFilename}`
         folderId = folder.id
       } else {
         // Fallback to default screenshots directory
-        targetDir = baseDir
         relativeFilepath = `/screenshots/${finalFilename}`
       }
     } else {
@@ -67,33 +61,30 @@ export async function POST(request: NextRequest) {
       })
 
       if (selectedFolder) {
-        const folderName = getFolderName(selectedFolder.path)
-        targetDir = path.join(baseDir, folderName)
+        folderName = getFolderName(selectedFolder.path)
         relativeFilepath = `/screenshots/${folderName}/${finalFilename}`
         folderId = selectedFolder.id
       } else {
-        // Default to public/screenshots
-        targetDir = baseDir
+        // Default to screenshots root
         relativeFilepath = `/screenshots/${finalFilename}`
       }
     }
 
-    // Ensure target directory exists
-    await fs.mkdir(targetDir, { recursive: true })
-
-    // Remove data URL prefix and save
+    // Remove data URL prefix and create buffer
     const imageData = image.replace(/^data:image\/\w+;base64,/, "")
-    const buffer = Buffer.from(imageData, "base64")
-
-    // Write to filesystem using absolute path
-    const absoluteFilepath = path.join(process.cwd(), "public", relativeFilepath)
-    await fs.writeFile(absoluteFilepath, buffer)
+    let buffer: Buffer = Buffer.from(imageData, "base64")
 
     // Embed AI description into image EXIF metadata
     if (description) {
-      await embedImageMetadata(absoluteFilepath, description)
+      buffer = await embedImageMetadataToBuffer(buffer, description) as Buffer
     }
 
+    // Upload to R2
+    // R2 key is the filepath without the leading slash
+    const r2Key = relativeFilepath.replace(/^\//, "")
+    await uploadToR2(r2Key, buffer, "image/png")
+
+    console.log("[UPLOAD] Uploaded to R2:", r2Key)
     console.log("[UPLOAD] Returning filepath:", relativeFilepath)
     console.log("[UPLOAD] folderId:", folderId)
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import fs from "fs/promises"
-import path from "path"
+import { getFromR2 } from "@/lib/s3"
 
-// GET serve image from custom folder path
+// GET serve image from R2
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -17,46 +16,44 @@ export async function GET(
       )
     }
 
-    // Reconstruct the full path from segments
+    // Reconstruct the R2 key from segments
     // The path comes URL-encoded, so we need to decode it
-    const fullPath = decodeURIComponent(pathSegments.join("/"))
+    const r2Key = decodeURIComponent(pathSegments.join("/"))
 
-    // Security: ensure the path is absolute and doesn't contain path traversal
-    const normalizedPath = path.normalize(fullPath)
-    if (normalizedPath.includes("..")) {
+    // Security: ensure the path doesn't contain path traversal
+    if (r2Key.includes("..")) {
       return NextResponse.json(
         { error: "Invalid path" },
         { status: 400 }
       )
     }
 
-    // Check if file exists
+    // Fetch from R2
+    let fileBuffer: Buffer
     try {
-      await fs.access(normalizedPath)
-    } catch {
+      fileBuffer = await getFromR2(r2Key)
+    } catch (error) {
+      console.error("R2 fetch error:", error)
       return NextResponse.json(
         { error: "File not found" },
         { status: 404 }
       )
     }
 
-    // Read the file
-    const fileBuffer = await fs.readFile(normalizedPath)
-
     // Determine content type based on extension
-    const ext = path.extname(normalizedPath).toLowerCase()
+    const ext = r2Key.split(".").pop()?.toLowerCase() || ""
     const contentTypes: Record<string, string> = {
-      ".png": "image/png",
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".gif": "image/gif",
-      ".webp": "image/webp",
-      ".bmp": "image/bmp",
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      webp: "image/webp",
+      bmp: "image/bmp",
     }
 
     const contentType = contentTypes[ext] || "application/octet-stream"
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",

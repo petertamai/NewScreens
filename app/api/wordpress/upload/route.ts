@@ -2,19 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth-utils"
 import { WordPressClient } from "@/lib/wordpress"
-import fs from "fs/promises"
-import path from "path"
-
-// Helper to resolve filepath to absolute filesystem path
-// Handles both legacy absolute paths and new relative paths
-function resolveFilePath(filepath: string): string {
-  if (filepath.startsWith("/")) {
-    // New relative format - prepend public directory
-    return path.join(process.cwd(), "public", filepath)
-  }
-  // Legacy absolute path - use as-is
-  return filepath
-}
+import { getFromR2, filepathToR2Key } from "@/lib/s3"
 
 // Helper to get basename from path (handles both Windows and Unix paths cross-platform)
 // On Linux, path.basename('C:\\Users\\...\\file.png') returns the entire string because
@@ -26,7 +14,7 @@ function getBasename(filepath: string): string {
 
 /**
  * Upload a screenshot to WordPress
- * This endpoint is called after the screenshot is saved locally
+ * This endpoint is called after the screenshot is saved to R2
  */
 export async function POST(request: NextRequest) {
   try {
@@ -87,10 +75,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Read the image file
-    const filePath = resolveFilePath(screenshot.filepath)
-    const fileBuffer = await fs.readFile(filePath)
-    const filename = getBasename(filePath)
+    // Read the image file from R2
+    const r2Key = filepathToR2Key(screenshot.filepath)
+    const fileBuffer = await getFromR2(r2Key)
+    const filename = getBasename(screenshot.filepath)
 
     // Parse keywords if available
     let keywords: string[] = []

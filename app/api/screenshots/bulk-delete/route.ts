@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/auth-utils"
-import fs from "fs/promises"
-import path from "path"
-
-// Helper to resolve filepath to absolute filesystem path
-// Handles both legacy absolute paths and new relative paths
-function resolveFilePath(filepath: string): string {
-  if (filepath.startsWith("/")) {
-    // New relative format - prepend public directory
-    return path.join(process.cwd(), "public", filepath)
-  }
-  // Legacy absolute path - use as-is
-  return filepath
-}
+import { deleteFromR2, filepathToR2Key } from "@/lib/s3"
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,13 +20,13 @@ export async function POST(request: NextRequest) {
       where: { id: { in: ids }, userId: user.id },
     })
 
-    // Delete files from disk
+    // Delete files from R2
     for (const screenshot of screenshots) {
-      const filePath = resolveFilePath(screenshot.filepath)
+      const r2Key = filepathToR2Key(screenshot.filepath)
       try {
-        await fs.unlink(filePath)
+        await deleteFromR2(r2Key)
       } catch (e) {
-        console.error(`Failed to delete file: ${filePath}`, e)
+        console.error(`Failed to delete file from R2: ${r2Key}`, e)
       }
     }
 

@@ -44,6 +44,22 @@ export interface UploadParams {
 }
 
 /**
+ * Get MIME type from filename extension
+ */
+function getMimeType(filename: string): string {
+  const ext = filename.toLowerCase().split('.').pop()
+  const mimeTypes: Record<string, string> = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'bmp': 'image/bmp',
+  }
+  return mimeTypes[ext || ''] || 'image/png'
+}
+
+/**
  * WordPress API Client class
  */
 export class WordPressClient {
@@ -89,12 +105,25 @@ export class WordPressClient {
     const formData = new FormData()
 
     // Add file - handle both Buffer (Node.js) and Blob (browser)
+    const mimeType = getMimeType(params.filename)
+    const fileSize = Buffer.isBuffer(params.file) ? params.file.length : (params.file as Blob).size
+
+    console.log('[WP Upload] Starting upload:', {
+      filename: params.filename,
+      mimeType,
+      fileSize,
+      externalId: params.externalId,
+      endpoint: this.getEndpoint('/upload'),
+    })
+
     if (Buffer.isBuffer(params.file)) {
-      // Convert Buffer to Uint8Array then to Blob for FormData
-      const blob = new Blob([new Uint8Array(params.file)])
+      // Convert Buffer to Blob with proper MIME type
+      const blob = new Blob([new Uint8Array(params.file)], { type: mimeType })
       formData.append('file', blob, params.filename)
+      console.log('[WP Upload] Created Blob from Buffer, size:', blob.size, 'type:', blob.type)
     } else {
       formData.append('file', params.file, params.filename)
+      console.log('[WP Upload] Using existing Blob, size:', params.file.size, 'type:', params.file.type)
     }
 
     // Add required external_id
@@ -125,12 +154,33 @@ export class WordPressClient {
       body: formData,
     })
 
-    const result = await response.json()
+    console.log('[WP Upload] Response status:', response.status, response.statusText)
+    console.log('[WP Upload] Response headers:', Object.fromEntries(response.headers.entries()))
+
+    const responseText = await response.text()
+    console.log('[WP Upload] Response body (raw):', responseText)
+
+    let result
+    try {
+      result = JSON.parse(responseText)
+      console.log('[WP Upload] Response body (parsed):', result)
+    } catch (e) {
+      console.error('[WP Upload] Failed to parse JSON response:', e)
+      throw new Error(`Invalid JSON response from WordPress: ${responseText.substring(0, 500)}`)
+    }
 
     if (!response.ok || !result.success) {
+      console.error('[WP Upload] Upload failed:', {
+        status: response.status,
+        success: result.success,
+        code: result.code,
+        message: result.message,
+        fullResult: result,
+      })
       throw new Error(result.message || `Upload failed with status ${response.status}`)
     }
 
+    console.log('[WP Upload] Upload successful:', result)
     return result as WordPressUploadResult
   }
 }
