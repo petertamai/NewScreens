@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const globalSettings = await prisma.settings.findMany({
       where: {
         userId: user.id,
-        key: { in: ["customPrompt", "gemini_model"] }
+        key: { in: ["customPrompt", "gemini_model", "gemini_api_key"] }
       }
     })
 
@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
       if (setting.key === "gemini_model") {
         geminiModel = setting.value
       }
+    }
+
+    // Get Gemini API key
+    const geminiApiKey = globalSettings.find(s => s.key === "gemini_api_key")?.value
+    if (!geminiApiKey) {
+      return NextResponse.json(
+        { error: "Gemini API key not configured. Please add it in Settings." },
+        { status: 400 }
+      )
     }
 
     // 1. Check folder's custom prompt first (must belong to user)
@@ -61,7 +70,7 @@ export async function POST(request: NextRequest) {
     console.log("[Analyze] Final instruction:", customInstruction ? "CUSTOM" : "DEFAULT")
     console.log("[Analyze] Using model:", geminiModel)
 
-    const result = await analyzeImage(image, customInstruction, geminiModel)
+    const result = await analyzeImage(image, customInstruction, geminiModel, geminiApiKey)
 
     // Calculate and save usage
     const { usage } = result

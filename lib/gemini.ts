@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+export function createGeminiClient(apiKey: string) {
+  return new GoogleGenerativeAI(apiKey)
+}
 
 export const DEFAULT_MODEL = "gemini-2.0-flash-lite"
 
@@ -58,8 +60,13 @@ export interface AnalysisResult {
 export async function analyzeImage(
   base64Image: string,
   customInstruction?: string,
-  modelName?: string
+  modelName?: string,
+  apiKey?: string
 ): Promise<AnalysisResult> {
+  if (!apiKey) {
+    throw new Error("Gemini API key is required")
+  }
+  const genAI = createGeminiClient(apiKey)
   const selectedModel = modelName || DEFAULT_MODEL
   const model = genAI.getGenerativeModel({ model: selectedModel })
 

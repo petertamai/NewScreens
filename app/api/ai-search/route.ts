@@ -8,8 +8,6 @@ import pricing from "@/lib/pricing.json"
 type PricingData = { input: number; output: number }
 const pricingMap = pricing as Record<string, PricingData>
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
-
 const SYSTEM_PROMPT = `You are a semantic search engine for a screenshot library.
 Given a catalog of screenshots and a user query, find matching screenshots.
 Match based on: keywords, semantic similarity, conceptual relationships.
@@ -49,6 +47,18 @@ export async function POST(request: NextRequest) {
       where: { key: "gemini_model", userId: user.id }
     })
     const selectedModel = modelSetting?.value || DEFAULT_MODEL
+
+    // Fetch Gemini API key from user's settings
+    const apiKeySetting = await prisma.settings.findFirst({
+      where: { key: "gemini_api_key", userId: user.id }
+    })
+    if (!apiKeySetting?.value) {
+      return NextResponse.json(
+        { error: "Gemini API key not configured. Please add it in Settings." },
+        { status: 400 }
+      )
+    }
+    const genAI = new GoogleGenerativeAI(apiKeySetting.value)
 
     // Fetch user's screenshots (limit to 200 most recent for token management)
     const screenshots = await prisma.screenshot.findMany({

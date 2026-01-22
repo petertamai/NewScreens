@@ -22,6 +22,7 @@ export async function GET() {
       wordpress_site_url: settingsMap["wordpress_site_url"] || "",
       wordpress_api_key: settingsMap["wordpress_api_key"] || "",
       gemini_model: settingsMap["gemini_model"] || DEFAULT_MODEL,
+      gemini_api_key: settingsMap["gemini_api_key"] || "",
     })
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
     const body = await request.json()
-    const { customPrompt, wordpress_site_url, wordpress_api_key, gemini_model } = body
+    const { customPrompt, wordpress_site_url, wordpress_api_key, gemini_model, gemini_api_key } = body
 
     // Helper to upsert user-specific settings
     const upsertSetting = async (key: string, value: string) => {
@@ -94,6 +95,15 @@ export async function POST(request: NextRequest) {
         await upsertSetting("wordpress_api_key", wordpress_api_key)
       } else {
         await deleteSetting("wordpress_api_key")
+      }
+    }
+
+    // Handle Gemini API key setting
+    if (gemini_api_key !== undefined) {
+      if (gemini_api_key) {
+        await upsertSetting("gemini_api_key", gemini_api_key)
+      } else {
+        await deleteSetting("gemini_api_key")
       }
     }
 

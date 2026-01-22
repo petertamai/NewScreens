@@ -26,6 +26,12 @@ export function SettingsPanel() {
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [isModelSaving, setIsModelSaving] = useState(false)
 
+  // Gemini API Key settings
+  const [geminiApiKey, setGeminiApiKey] = useState("")
+  const [testingGemini, setTestingGemini] = useState(false)
+  const [geminiTestResult, setGeminiTestResult] = useState<{success: boolean; message: string} | null>(null)
+  const [isGeminiSaving, setIsGeminiSaving] = useState(false)
+
   // WordPress settings
   const [wpSiteUrl, setWpSiteUrl] = useState("")
   const [wpApiKey, setWpApiKey] = useState("")
@@ -48,6 +54,8 @@ export function SettingsPanel() {
           if (data.wordpress_api_key) setWpApiKey(data.wordpress_api_key)
           // Load AI model setting
           if (data.gemini_model) setSelectedModel(data.gemini_model)
+          // Load Gemini API key
+          if (data.gemini_api_key) setGeminiApiKey(data.gemini_api_key)
         }
       } catch (error) {
         console.error("Failed to fetch settings:", error)
@@ -122,6 +130,72 @@ export function SettingsPanel() {
       })
     } finally {
       setIsModelSaving(false)
+    }
+  }
+
+  // Gemini API Key handlers
+  const saveGeminiApiKey = async () => {
+    setIsGeminiSaving(true)
+    try {
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gemini_api_key: geminiApiKey }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "API key saved",
+          description: "Your Gemini API key has been saved.",
+        })
+        setGeminiTestResult(null)
+      } else {
+        throw new Error("Failed to save")
+      }
+    } catch (error) {
+      console.error("Failed to save Gemini API key:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save API key. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeminiSaving(false)
+    }
+  }
+
+  const testGeminiConnection = async () => {
+    setTestingGemini(true)
+    setGeminiTestResult(null)
+    try {
+      const response = await fetch("/api/gemini/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: geminiApiKey }),
+      })
+      const result = await response.json()
+      setGeminiTestResult(result)
+      if (result.success) {
+        toast({
+          title: "Connection successful",
+          description: "Gemini API key is valid.",
+        })
+      } else {
+        toast({
+          title: "Connection failed",
+          description: result.message || "Invalid API key.",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      setGeminiTestResult({ success: false, message: "Connection failed" })
+      toast({
+        title: "Connection error",
+        description: "Could not test the API key.",
+        variant: "destructive",
+      })
+    } finally {
+      setTestingGemini(false)
     }
   }
 
@@ -226,8 +300,84 @@ export function SettingsPanel() {
 
   return (
     <div className="max-w-3xl">
-      {/* AI Model Settings */}
+      {/* Gemini API Key */}
       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Gemini API Key
+          </CardTitle>
+          <CardDescription>
+            Get your API key from{" "}
+            <a
+              href="https://aistudio.google.com/apikeys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Google AI Studio
+            </a>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="gemini-api-key" className="text-sm font-medium flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              API Key
+            </label>
+            <Input
+              id="gemini-api-key"
+              type="password"
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+              placeholder="AIza..."
+              className="font-mono"
+            />
+          </div>
+
+          {/* Connection Status */}
+          {geminiTestResult && (
+            <div className={`flex items-center gap-2 p-3 rounded-md ${
+              geminiTestResult.success
+                ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+            }`}>
+              {geminiTestResult.success ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <XCircle className="h-4 w-4" />
+              )}
+              <span className="text-sm">{geminiTestResult.message}</span>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button onClick={saveGeminiApiKey} disabled={!geminiApiKey || isGeminiSaving}>
+              {isGeminiSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              onClick={testGeminiConnection}
+              disabled={!geminiApiKey || testingGemini}
+            >
+              {testingGemini ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              Test
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Model Settings */}
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Cpu className="h-5 w-5" />
